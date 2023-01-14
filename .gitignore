@@ -1,0 +1,9 @@
+
+*.jpg
+data/generated_images/train/.DS_Store
+data/generated_images/val/.DS_Store
+data/generated_images/annotations/.DS_Store
+data/generated_images/.DS_Store
+*.json
+.DS_Store
+*.pyc
