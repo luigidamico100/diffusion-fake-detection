@@ -10,7 +10,7 @@ from torch import optim
 from defake.config import device
 from defake.models.models import DnCNN, SiameseNetwork
 from defake.models.data_manager import PatchDataset
-from defake.models.train_utils import DBLLoss, build_correspondence_matrix, compute_DBL_loss, compute_batch_output
+from defake.models.train_utils import DBLLoss, compute_batch_output
 from defake.paths import (dataset_annotations_train_path, dataset_annotations_val_path,
                           dataset_real_train_dir, dataset_real_val_dir,
                           dataset_generated_train_dir, dataset_generated_val_dir)
@@ -18,6 +18,9 @@ from defake.models.trial_utils import create_trial_datasets, SimpleNet
 import pandas as pd
 import seaborn as sns
 from defake.models.test_utils import test_n1, test_histplot, test_histplot_with_model, test_n3
+from defake.config import seed_everything
+
+seed_everything(42)
 
 device = torch.device("cpu")
 print(device)
@@ -49,6 +52,7 @@ else:
     
     n_classes = 3
     assert (batch_size/n_classes).is_integer()
+    
     batch_size_per_class = batch_size // n_classes
 
     dataset_train, dataset_val, dataset_test = create_trial_datasets(n_samples_per_class_train=100,
@@ -74,7 +78,7 @@ optimizer = optim.Adam(model.parameters(), lr = 0.0005)
 train_loss_history, val_loss_history = [], []
 train_loss_batches, val_loss_batches = [], []
 
-correspondence_matrix = build_correspondence_matrix(batch_size, n_classes, device)
+loss = DBLLoss(batch_size, n_classes, device)
 
 # Iterate throught the epochs
 for epoch in range(epochs):
@@ -91,7 +95,7 @@ for epoch in range(epochs):
         # batch_outputs = model.compute_batch_output(dataloader_item)
         batch_outputs = compute_batch_output(model, dataloader_item)
 
-        batch_loss = compute_DBL_loss(batch_outputs, correspondence_matrix)
+        batch_loss = loss.compute_loss(batch_outputs)
 
         batch_loss.backward()
         optimizer.step()
@@ -105,7 +109,7 @@ for epoch in range(epochs):
         for dataloader_item in dataloader_val:
             # batch_outputs = model.compute_batch_output(dataloader_item)
             batch_outputs = compute_batch_output(model, dataloader_item)
-            batch_loss = compute_DBL_loss(batch_outputs, correspondence_matrix)
+            batch_loss = loss.compute_loss(batch_outputs)
             val_loss_batches.append(batch_loss.item())
 
     # update the training history 
@@ -120,7 +124,6 @@ for epoch in range(epochs):
 plt.plot(train_loss_history, label='training loss')
 plt.plot(val_loss_history, label='validation loss')
 plt.legend()
-
 
 
 
