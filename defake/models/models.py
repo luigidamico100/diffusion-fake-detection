@@ -10,60 +10,10 @@ from torch import optim
 from defake.config import device
 
 
-
-class SimpleNet(nn.Module):
-
-    def __init__(self, device='cpu'):
-        super(SimpleNet, self).__init__()
-
-        self.device = device
-
-        self.my_cnn = nn.Sequential(
-            nn.Conv2d(3, 8, kernel_size=3, stride=1, padding='same'),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(8, 32, kernel_size=3, stride=1, padding='same'),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(32, 8, kernel_size=3, stride=1, padding='same'),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(8, 1, kernel_size=3, stride=1, padding='same'),
-            nn.ReLU(inplace=True),
-        )
-
-        self.to(device)
-
-    def forward(self, input_):
-        """
-        input_ shape (n, 3, H, W)
-        output_ shape (n, 1, H, W)
-        """
-        output_ = self.my_cnn(input_)
-        return output_
-
-    def compute_batch_output(self, dataloader_item):
-      """
-      n: n of samples per class
-      N: n of total samples (N = n * n_classes)
-      dataloader: list of n_class elements
-      - each elements containg tensor of shape (n, 3, H, W)
-
-      return batch_outputs, shape (N, 1, H, W)
-      """
-      batch_outputs_list = [] 
-      for class_elements in dataloader_item:
-        # class_elements tensor of (n, 3, 128, 128)
-        class_elements = class_elements.to(self.device)
-        class_outputs = self.forward(class_elements)
-        batch_outputs_list.append(class_outputs) # list of len=num_classes. Each elements contain a single class outputs of shape (B, 1, H, W) each
-      batch_outputs = torch.concat(batch_outputs_list) # shape (N, 1, H, W) # TODO: check how it concatenate
-      return batch_outputs
-
-
 class SiameseNetwork(nn.Module):
-    def __init__(self, model, device):
+    def __init__(self, model):
       super(SiameseNetwork, self).__init__()
       self.model = model
-      self.to(device)
-      self.device = device
 
     def forward(self, input1, input2):
       """
@@ -72,9 +22,12 @@ class SiameseNetwork(nn.Module):
       input2: shape (3, H, W)
       """
       assert len(input1.shape)==3 and len(input2.shape)==3, "You have used batch!"
+      
+      input1 = input1.unsqueeze(dim=0) # shape (1, 3, H, W)
+      input2 = input2.unsqueeze(dim=0) # shape (1, 3, H, W)
 
-      output1 = self.model(input1) # shape (1, H, W)
-      output2 = self.model(input2) # shape (1, H, W)
+      output1 = self.model(input1) # shape (1, 1, H, W)
+      output2 = self.model(input2) # shape (1, 1, H, W)
       output1_flatten = torch.flatten(output1)
       output2_flatten = torch.flatten(output2)
 
@@ -212,21 +165,3 @@ class DnCNN(nn.Module):
     
     def save_weights(self, path):
         torch.save(self.state_dict(), path)
-
-    def compute_batch_output(self, dataloader_item):
-      """
-      n: n of samples per class
-      N: n of total samples (N = n * n_classes)
-      dataloader: list of n_class elements
-      - each elements containg tensor of shape (n, 3, H, W)
-
-      return batch_outputs, shape (N, 1, H, W)
-      """
-      batch_outputs_list = [] 
-      for class_elements in dataloader_item:
-        # class_elements tensor of (n, 3, 128, 128)
-        class_elements = class_elements.to(device)
-        class_outputs = self.forward(class_elements)
-        batch_outputs_list.append(class_outputs) # list of len=num_classes. Each elements contain a single class outputs of shape (B, 1, H, W) each
-      batch_outputs = torch.concat(batch_outputs_list) # shape (N, 1, H, W) # TODO: check how it concatenate
-      return batch_outputs
