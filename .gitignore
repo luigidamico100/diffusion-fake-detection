@@ -7,3 +7,4 @@ data/generated_images/.DS_Store
 *.json
 .DS_Store
 *.pyc
+data
