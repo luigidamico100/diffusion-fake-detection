@@ -12,7 +12,7 @@ import torch
 
 class PatchDataset(Dataset):
     
-    def __init__(self, annotations_path, real_images_path, generated_images_path, patch_size=48):
+    def __init__(self, annotations_path, real_images_path, generated_images_path, patch_size=48, device='cpu'):
             
         with open(annotations_path) as json_file:
             annotations_dict = json.loads(json_file.read())
@@ -21,6 +21,7 @@ class PatchDataset(Dataset):
         self.real_images_path = real_images_path
         self.generated_images_path = generated_images_path
         self.patch_size = patch_size
+        self.device = device
             
         
     def __len__(self):
@@ -61,7 +62,7 @@ class PatchDataset(Dataset):
 
         
         
-        return [real_patch, generated_patch]
+        return [real_patch.to(self.device), generated_patch.to(self.device)]
         
     
     
