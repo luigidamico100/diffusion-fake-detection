@@ -10,7 +10,7 @@ elif torch.backends.mps.is_available():
 	# Check https://github.com/pytorch/pytorch/issues/77764
 	# device = torch.device("cpu")
 else:
-	torch.device("cpu")
+	device = torch.device("cpu")
     
     
 def seed_everything(seed: int):
