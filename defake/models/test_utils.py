@@ -59,8 +59,8 @@ def test_histplot(model, dataset, n_classes, device='cpu'):
     for i in range(n_examples):
         class_img_1 = random.randrange(n_classes)
         class_img_2 = random.randrange(n_classes)
-        img_1 = next(dataiter)[class_img_1][0].to(device)
-        img_2 = next(dataiter)[class_img_2][0].to(device)
+        img_1 = next(dataiter)[class_img_1][0].to(device) # shape: (3, H, W)
+        img_2 = next(dataiter)[class_img_2][0].to(device) # shape: (3, H, W)
         dist = siamese_net(img_1, img_2).item()
         
         dict_siamese_out = {'class_img_1': class_img_1,

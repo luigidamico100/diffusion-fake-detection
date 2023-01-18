@@ -28,8 +28,8 @@ print(device)
 #%% Params
 
 batch_size = 60 # Choose batch_size > n_classes*3
-epochs = 5
-trial = True
+epochs = 10
+trial = False
 
 #%% Initialization
 
@@ -68,6 +68,7 @@ dataloader_test = DataLoader(dataset_test, batch_size=1, shuffle=True, drop_last
 # model = DnCNN(in_nc=3) # This model is really huge -> the training gonna be slow
 model = SimpleNet().to(device)
 optimizer = optim.Adam(model.parameters(), lr = 0.0005)
+loss = DBLLoss(batch_size, n_classes, regularization=False, lambda_=.2, device=device)
 
 
 #%% Training loop
@@ -77,8 +78,6 @@ optimizer = optim.Adam(model.parameters(), lr = 0.0005)
 
 train_loss_history, val_loss_history = [], []
 train_loss_batches, val_loss_batches = [], []
-
-loss = DBLLoss(batch_size, n_classes, device)
 
 # Iterate throught the epochs
 for epoch in range(epochs):
@@ -124,7 +123,6 @@ for epoch in range(epochs):
 plt.plot(train_loss_history, label='training loss')
 plt.plot(val_loss_history, label='validation loss')
 plt.legend()
-
 
 
 #%% Test
