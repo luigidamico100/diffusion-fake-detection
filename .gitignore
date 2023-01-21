@@ -12,3 +12,17 @@ data
 data/dataset/annotations/.gitkeep
 data/dataset/.gitkeep
 data/annotations/.gitkeep
+data/real_images/val2017/.gitkeep
+data/annotations/.gitkeep
+data/dataset/.gitkeep
+data/dataset/annotations/.gitkeep
+data/dataset/generated_images/.gitkeep
+data/dataset/generated_images/train/.gitkeep
+data/dataset/generated_images/val/.gitkeep
+data/dataset/real_images/.gitkeep
+data/dataset/real_images/train/.gitkeep
+data/dataset/real_images/val/.gitkeep
+data/real_images/.gitkeep
+data/real_images/train2017/.gitkeep
+data/real_images/annotations/.gitkeep
+runs/*
