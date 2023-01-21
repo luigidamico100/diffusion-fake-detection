@@ -19,7 +19,7 @@ def seed_everything(seed: int):
     deterministically select an algorithm, possibly at the cost of reduced performance.
     However, if you do not need reproducibility across multiple executions of your application, 
     then performance might improve if the benchmarking feature is enabled with torch.backends.cudnn.benchmark = True.
-    '''    
+    '''
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)

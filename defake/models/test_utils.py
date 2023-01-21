@@ -7,7 +7,6 @@ import torchvision.utils
 import torch
 import torch.nn as nn
 from defake.models.models import DnCNN, SiameseNetwork
-from defake.models.data_manager import PatchDataset
 from defake.paths import (dataset_annotations_train_path, dataset_annotations_val_path,
                           dataset_real_train_dir, dataset_real_val_dir,
                           dataset_generated_train_dir, dataset_generated_val_dir)
@@ -76,6 +75,7 @@ def test_histplot(model, dataset, n_classes, device='cpu'):
 def test_histplot_with_model(model, dataset, n_classes, device='cpu'):
     """ Simple test for measuring distances of equal/different classes """
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, drop_last=True)
+    model.eval()
     
     np.random.seed(42)
 
@@ -84,22 +84,24 @@ def test_histplot_with_model(model, dataset, n_classes, device='cpu'):
     dataiter = iter(dataloader)
     
     siamese_out_list = []
-    for i in range(n_examples):
-        class_img_1 = random.randrange(n_classes)
-        class_img_2 = random.randrange(n_classes)
-        img_1 = next(dataiter)[class_img_1].to(device) # shape: (1, 3, H, W)
-        img_2 = next(dataiter)[class_img_2].to(device) # shape: (1, 3, H, W)
-        
-        out_1 = model(img_1) # shape: (1, 1, H, W)
-        out_2 = model(img_2) # shape: (1, 1, H, W)
-        
-        dist = torch.norm(out_1 - out_2, p=2).item()
-        
-        dict_siamese_out = {'class_img_1': class_img_1,
-                            'class_img_2': class_img_2,
-                            'equal_class': class_img_1==class_img_2,
-                            'distance': dist}
-        siamese_out_list.append(dict_siamese_out)
+    
+    with torch.no_grad():
+        for i in range(n_examples):
+            class_img_1 = random.randrange(n_classes)
+            class_img_2 = random.randrange(n_classes)
+            img_1 = next(dataiter)[class_img_1].to(device) # shape: (1, 3, H, W)
+            img_2 = next(dataiter)[class_img_2].to(device) # shape: (1, 3, H, W)
+            
+            out_1 = model(img_1) # shape: (1, 1, H, W)
+            out_2 = model(img_2) # shape: (1, 1, H, W)
+            
+            dist = torch.norm(out_1 - out_2, p=2).item()
+            
+            dict_siamese_out = {'class_img_1': class_img_1,
+                                'class_img_2': class_img_2,
+                                'equal_class': class_img_1==class_img_2,
+                                'distance': dist}
+            siamese_out_list.append(dict_siamese_out)
       
     df_siamese_out = pd.DataFrame(siamese_out_list)
     sns.histplot(df_siamese_out, x='distance', hue='equal_class', bins=50)

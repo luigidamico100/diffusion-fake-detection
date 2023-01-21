@@ -10,6 +10,7 @@ class SimpleNet(nn.Module):
         super(SimpleNet, self).__init__()
 
         self.my_cnn = nn.Sequential(
+            # nn.BatchNorm2d(3),
             nn.Conv2d(3, 8, kernel_size=3, stride=1, padding='same'),
             nn.BatchNorm2d(8),
             nn.ReLU(inplace=True),
@@ -27,6 +28,7 @@ class SimpleNet(nn.Module):
         input_ shape (n, 3, H, W)
         output_ shape (n, 1, H, W)
         """
+        # input_ = input_ - .5
         output_ = self.my_cnn(input_)
         return output_
 

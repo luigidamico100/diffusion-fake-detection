@@ -33,6 +33,8 @@ dataset_real_val_dir = os.path.join(dataset_path, 'real_images', 'val')
 dataset_annotations_train_path = os.path.join(dataset_path, 'annotations', 'dataset_annotations_train.json')
 dataset_annotations_val_path = os.path.join(dataset_path, 'annotations', 'dataset_annotations_val.json')
 
+# logs
+runs_path = os.path.join(project_root_path, 'runs')
 
 
 

@@ -1,21 +1,39 @@
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, Dataset
+from defake.paths import (dataset_annotations_train_path, dataset_annotations_val_path,
+                          dataset_real_train_dir, dataset_real_val_dir,
+                          dataset_generated_train_dir, dataset_generated_val_dir)
+import json
+from PIL import Image
+import os
+import torchvision.transforms.functional as TF
+from numpy.random import randint
+import torch
 
 
 class DBLLoss():
     
-    def __init__(self, batch_size, n_classes, regularization=False, lambda_=0.2, device='cpu'):
+    def __init__(self, batch_size, n_classes, driveaway_different_classes=False, regularization=False, lambda_=0.2, device='cpu', verbose=False):
         batch_size_per_class = batch_size // n_classes
             
         # building the correspondance matrix
-        correspondence_matrix_orig = torch.zeros(batch_size, batch_size, dtype=torch.bool, device=device) # N x N matrix (L in the paper)
-        for idx_class in range(n_classes):
-          correspondence_matrix_orig[idx_class*batch_size_per_class:(idx_class+1)*batch_size_per_class, idx_class*batch_size_per_class:(idx_class+1)*batch_size_per_class] = True
-    
+
+        if driveaway_different_classes:
+            correspondence_matrix_orig = - torch.ones(batch_size, batch_size, device=device) # N x N matrix (L in the paper)
+            for idx_class in range(n_classes):
+                correspondence_matrix_orig[idx_class*batch_size_per_class:(idx_class+1)*batch_size_per_class, idx_class*batch_size_per_class:(idx_class+1)*batch_size_per_class] = 1
+
+        else:
+            correspondence_matrix_orig = torch.zeros(batch_size, batch_size, dtype=torch.bool, device=device) # N x N matrix (L in the paper)
+            for idx_class in range(n_classes):
+                correspondence_matrix_orig[idx_class*batch_size_per_class:(idx_class+1)*batch_size_per_class, idx_class*batch_size_per_class:(idx_class+1)*batch_size_per_class] = True
+        
         self.correspondence_matrix = DBLLoss.remove_diagonal(correspondence_matrix_orig) # shape: (N, N-1)
         
         self.regularization = regularization
         self.lambda_ = lambda_
+        self.verbose = verbose
     
     
     def compute_loss(self, batch_outputs):
@@ -48,20 +66,35 @@ class DBLLoss():
         L = -torch.log((P * self.correspondence_matrix).sum(dim=1))
         
         # Equation (3)
-        loss = torch.sum(L)
+        dbl_loss = torch.sum(L)
         
         if self.regularization:
             reg_loss = DBLLoss.compute_regularization(batch_outputs)
-            print(f'DBL_loss: {loss}, reg_loss: {-reg_loss}')
-            loss = loss - self.lambda_ * reg_loss
+            reg_loss = - self.lambda_ * reg_loss
+            # loss = dbl_loss - self.lambda_ * reg_loss
+            
+        else:
+            reg_loss = 0.
+
+        if self.verbose:
+            print(f'DBL_loss: {dbl_loss:.4f}, reg_loss: {-self.lambda_ * reg_loss:.4f}')
         
-        return loss
+        loss = dbl_loss + reg_loss
+        
+        return loss, dbl_loss, reg_loss
     
     @staticmethod 
     def remove_diagonal(square_matrix):
         """
-        square_matrix: shape (N, N) 
-        return square_matrix: shape (N, N-1)
+        Parameters
+        ----------
+        square_matrix : torch.Tensor
+            shape (N, N)
+
+        Returns
+        -------
+        square_matrix : torch.Tensor
+            shape (N, N-1)
         """
         n = len(square_matrix)
         return square_matrix.flatten()[1:].view(n-1, n+1)[:,:-1].reshape(n, n-1)
@@ -92,6 +125,71 @@ class DBLLoss():
         reg_loss = torch.log(geometric_mean(S) / torch.mean(S))
         return reg_loss
         
+    
+    
+class PatchDataset(Dataset):
+    
+    def __init__(self, annotations_path, real_images_path, generated_images_path, patch_size=48, device='cpu', n_samples=None, deterministic_patches=False):
+            
+        with open(annotations_path) as json_file:
+            annotations_dict = json.loads(json_file.read())
+            self.annotations = list(annotations_dict.values())
+        
+        if n_samples:
+            self.annotations = self.annotations[:n_samples]
+        
+        self.real_images_path = real_images_path
+        self.generated_images_path = generated_images_path
+        self.patch_size = patch_size
+        self.deterministic_patches = deterministic_patches
+        self.device = device
+            
+        
+    def __len__(self):
+        return len(self.annotations)
+
+    def __getitem__(self, idx):
+        """
+        return a list of n_class elements
+        - each element is a np.ndarray of shape (3, H, W)
+        """
+        
+        real_image_name = self.annotations[idx]['image_name']
+        generated_image_name = self.annotations[idx]['generated_image_name']
+        prompt = self.annotations[idx]['prompt']
+        
+        real_image_path = os.path.join(self.real_images_path, real_image_name)
+        generated_image_path = os.path.join(self.generated_images_path, generated_image_name)
+        
+        real_image = TF.to_tensor(Image.open(real_image_path))
+        generated_image = TF.to_tensor(Image.open(generated_image_path))
+        
+        if self.deterministic_patches:
+            real_patch_height_index = 100
+            real_patch_width_index = 100
+            generated_patch_height_index = 100
+            generated_patch_width_index = 100
+        else:
+            real_patch_height_index = randint(0, real_image.shape[1] - self.patch_size)
+            real_patch_width_index = randint(0, real_image.shape[2] - self.patch_size)
+            generated_patch_height_index = randint(0, generated_image.shape[1] - self.patch_size)
+            generated_patch_width_index = randint(0, generated_image.shape[2] - self.patch_size)
+        
+        real_patch = real_image[:, 
+                                real_patch_height_index:real_patch_height_index+self.patch_size, 
+                                real_patch_width_index:real_patch_width_index+self.patch_size]
+        
+        if len(real_patch) == 1:
+            # This image is not RGB
+            real_patch = torch.cat([real_patch, real_patch, real_patch], 0)
+        
+        generated_patch = generated_image[:, 
+                                          generated_patch_height_index:generated_patch_height_index+self.patch_size, 
+                                          generated_patch_width_index:generated_patch_width_index+self.patch_size]
+
+        
+        
+        return real_patch.to(self.device), generated_patch.to(self.device)
         
 
 def compute_batch_output(model, dataloader_item):
@@ -105,14 +203,29 @@ def compute_batch_output(model, dataloader_item):
     """
     batch_outputs_list = [] 
     for class_elements in dataloader_item:
-      # class_elements tensor of (n, 3, 128, 128)
-      # class_elements = class_elements.to(self.device)
-      class_outputs = model(class_elements) #forward pass
-      batch_outputs_list.append(class_outputs) # list of len=num_classes. Each elements contain a single class outputs of shape (B, 1, H, W) each
+        # class_elements tensor of (n, 3, 128, 128)
+        # class_elements = class_elements.to(self.device)
+        class_outputs = model(class_elements) #forward pass
+        batch_outputs_list.append(class_outputs) # list of len=num_classes. Each elements contain a single class outputs of shape (B, 1, H, W) each
     batch_outputs = torch.concat(batch_outputs_list) # shape (N, 1, H, W) # TODO: check how it concatenate
     return batch_outputs
   
+    
 
+def main():
+    
+    dataset_train = PatchDataset(annotations_path=dataset_annotations_train_path,
+                                 real_images_path=dataset_real_train_dir,
+                                 generated_images_path=dataset_generated_train_dir)
+    
+    dataloader_train = DataLoader(dataset_train, batch_size=8, shuffle=True, drop_last=True)
+    
+    dataloader_it = iter(dataloader_train)
+    
+    sample = next(dataloader_it)
+    
+if __name__ == '__main__':
+    main()
     
   
     
