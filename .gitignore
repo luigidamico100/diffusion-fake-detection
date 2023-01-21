@@ -8,3 +8,7 @@ data/generated_images/.DS_Store
 .DS_Store
 *.pyc
 data
+*/.gitkeep
+data/dataset/annotations/.gitkeep
+data/dataset/.gitkeep
+data/annotations/.gitkeep
