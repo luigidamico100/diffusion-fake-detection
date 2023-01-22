@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from torch import optim
 from defake.config import device
-from defake.models.models import DnCNN, SiameseNetwork
+from defake.models.models import DnCNN, SiameseNetwork, DnCNN_2
 from defake.models.train_utils import PatchDataset
 from defake.models.train_utils import DBLLoss, compute_batch_output
 from defake.paths import (dataset_annotations_train_path, dataset_annotations_val_path,
@@ -24,14 +24,26 @@ from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 import os
 
-seed_everything(42)
 
-# device = torch.device("cpu")
-
+'''
+- DataLoader has bad default settings, tune num workers > 0 and defaultto pin memory = True
+- use torch.backends. cudnn. benchmark = True to autotune cudnn kernel choice
+- max out the batch size for each GPU to ammortize compute
+- do not forget bias=False in weight layers before BatchNorms, it's a noop that bloats model
+- use for p in model.parameters ( ): p.grad = None instead of model.zero grad ( )
+- careful to disable debug APIs in prod (detect _anomaly/profiler/emit _nvtx/gradcheck...)
+- use DistributedDataParallel not DataParallel, even if not running distributed 
+- careful to load balance compute on all GPUs if variably-sized inputs or GPUs will idle 
+- use an apex fused optimizer (default PyTorch optim for loop iterates individual params, yikes) 
+- use checkpointing to recompute memory-intensive compute-efficient ops in bwd pass (eg activations, upsampling,
+- use @torch.jit.script, e.g. esp to fuse long sequences of pointwise ops like in GELU
+'''
 
 
 def train(batch_size, epochs, trial=False):
     
+    seed_everything(42)
+    device = torch.device("cpu")
     print(device)
 
     if not trial:
@@ -44,12 +56,14 @@ def train(batch_size, epochs, trial=False):
                                     real_images_path=dataset_real_train_dir,
                                     generated_images_path=dataset_generated_train_dir,
                                     n_samples=None,
-                                    deterministic_patches=False)
+                                    deterministic_patches=False,
+                                    device=device)
         
         dataset_val = PatchDataset(annotations_path=dataset_annotations_val_path,
                                     real_images_path=dataset_real_val_dir,
                                     generated_images_path=dataset_generated_val_dir,
-                                    n_samples=None)
+                                    n_samples=None,
+                                    device=device)
         dataset_test = dataset_val
     
     else:
@@ -69,8 +83,9 @@ def train(batch_size, epochs, trial=False):
     
     
     
+    model = DnCNN_2(channels=3).to(device)
     # model = DnCNN(in_nc=3).to(device) # This model is really huge -> the training gonna be slow
-    model = SimpleNet().to(device)
+    # model = SimpleNet().to(device)
     optimizer = optim.Adam(model.parameters(), lr = 0.0005)
     loss = DBLLoss(batch_size, n_classes, regularization=True, lambda_=10, driveaway_different_classes=False, device=device, verbose=False)
     summary(model, (3, 48, 48))
@@ -84,8 +99,6 @@ def train(batch_size, epochs, trial=False):
     train_reg_loss_batches, val_reg_loss_batches, test_reg_loss_batches = [], [], []
     logs_path = os.path.join(runs_path, datetime.now().strftime('%Y_%m_%d-%H_%M_%S'))
     writer = SummaryWriter(logs_path)
-    
-    train_loss_dict, test_loss_dict = {}, {}
     
     
     # Iterate throught the epochs
@@ -134,8 +147,6 @@ def train(batch_size, epochs, trial=False):
         #     test_loss_batches.append(batch_loss.item())
     
         # update the training history 
-        train_loss_dict[epoch] = train_loss_batches
-        test_loss_dict[epoch] = test_loss_batches
         train_loss_epoch = sum(train_loss_batches) / len(train_loss_batches)
         val_loss_epoch = sum(val_loss_batches) / len(val_loss_batches)
         
@@ -163,6 +174,7 @@ def train(batch_size, epochs, trial=False):
     writer.flush()
     writer.close()
     torch.save(model.state_dict, os.path.join(logs_path, 'model'))
+    print(f'Logs and model saved to: {logs_path}')
     
     # plt.plot(train_loss_history, label='training loss')
     # plt.plot(val_loss_history, label='validation loss')
@@ -212,7 +224,7 @@ def test():
 
 
 if __name__ == '__main__':
-    train(batch_size,
+    train(batch_size=10,
           epochs=10,
           trial=False)
 
