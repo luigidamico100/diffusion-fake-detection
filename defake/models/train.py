@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from torch import optim
 from defake.config import device
-from defake.models.models import DnCNN, SiameseNetwork, DnCNN_2
+from defake.models.models import DnCNN, SiameseNetwork
 from defake.models.train_utils import PatchDataset
 from defake.models.train_utils import DBLLoss, compute_batch_output
 from defake.paths import (dataset_annotations_train_path, dataset_annotations_val_path,
@@ -26,7 +26,7 @@ import os
 
 
 '''
-- DataLoader has bad default settings, tune num workers > 0 and defaultto pin memory = True
+- DataLoader has bad default settings, tune num workers > 0 and default to pin memory = True
 - use torch.backends. cudnn. benchmark = True to autotune cudnn kernel choice
 - max out the batch size for each GPU to ammortize compute
 - do not forget bias=False in weight layers before BatchNorms, it's a noop that bloats model
@@ -83,8 +83,7 @@ def train(batch_size, epochs, trial=False):
     
     
     
-    model = DnCNN_2(channels=3).to(device)
-    # model = DnCNN(in_nc=3).to(device) # This model is really huge -> the training gonna be slow
+    model = DnCNN(in_nc=3).to(device)
     # model = SimpleNet().to(device)
     optimizer = optim.Adam(model.parameters(), lr = 0.0005)
     loss = DBLLoss(batch_size, n_classes, regularization=True, lambda_=10, driveaway_different_classes=False, device=device, verbose=False)
