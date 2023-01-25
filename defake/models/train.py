@@ -40,7 +40,7 @@ import os
 '''
 
 
-def train(batch_size, epochs, trial=False):
+def train(batch_size, epochs, trial=False, experiment_name=None):
     
     seed_everything(42)
     device = torch.device("cpu")
@@ -86,7 +86,7 @@ def train(batch_size, epochs, trial=False):
     model = DnCNN(in_nc=3).to(device)
     # model = SimpleNet().to(device)
     optimizer = optim.Adam(model.parameters(), lr = 0.0005)
-    loss = DBLLoss(batch_size, n_classes, regularization=True, lambda_=6.5, driveaway_different_classes=False, device=device, verbose=False)
+    loss = DBLLoss(batch_size, n_classes, regularization=False, lambda_=6.5, driveaway_different_classes=False, device=device, verbose=False)
     summary(model, (3, 48, 48))
     
     # N: batch size
@@ -96,7 +96,7 @@ def train(batch_size, epochs, trial=False):
     train_loss_batches, val_loss_batches, test_loss_batches = [], [], []
     train_dbl_loss_batches, val_dbl_loss_batches, test_dbl_loss_batches = [], [], []
     train_reg_loss_batches, val_reg_loss_batches, test_reg_loss_batches = [], [], []
-    logs_path = os.path.join(runs_path, datetime.now().strftime('%Y_%m_%d-%H_%M_%S'))
+    logs_path = os.path.join(runs_path, f"{datetime.now().strftime('%Y_%m_%d-%H_%M_%S')}__{experiment_name}")
     writer = SummaryWriter(logs_path)
     
     
@@ -223,7 +223,8 @@ def test():
 if __name__ == '__main__':
     train(batch_size=10,
           epochs=10,
-          trial=False)
+          trial=False,
+          experiment_name='wo_reg')
 
 
 

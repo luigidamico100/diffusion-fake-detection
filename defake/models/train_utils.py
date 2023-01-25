@@ -74,12 +74,12 @@ class DBLLoss():
             # loss = dbl_loss - self.lambda_ * reg_loss
             
         else:
-            reg_loss = 0.
+            reg_loss = torch.tensor(0.)
 
         if self.verbose:
             print(f'DBL_loss: {dbl_loss:.4f}, reg_loss: {-self.lambda_ * reg_loss:.4f}')
         
-        loss = dbl_loss + reg_loss
+        loss = dbl_loss + reg_loss if self.regularization else dbl_loss
         
         return loss, dbl_loss, reg_loss
     
