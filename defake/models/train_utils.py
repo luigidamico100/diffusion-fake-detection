@@ -66,7 +66,7 @@ class DBLLoss():
         L = -torch.log((P * self.correspondence_matrix).sum(dim=1))
         
         # Equation (3)
-        dbl_loss = torch.sum(L)
+        dbl_loss = torch.mean(L)
         
         if self.regularization:
             reg_loss = DBLLoss.compute_regularization(batch_outputs)

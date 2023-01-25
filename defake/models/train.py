@@ -86,7 +86,7 @@ def train(batch_size, epochs, trial=False):
     model = DnCNN(in_nc=3).to(device)
     # model = SimpleNet().to(device)
     optimizer = optim.Adam(model.parameters(), lr = 0.0005)
-    loss = DBLLoss(batch_size, n_classes, regularization=True, lambda_=10, driveaway_different_classes=False, device=device, verbose=False)
+    loss = DBLLoss(batch_size, n_classes, regularization=True, lambda_=6.5, driveaway_different_classes=False, device=device, verbose=False)
     summary(model, (3, 48, 48))
     
     # N: batch size
@@ -167,7 +167,8 @@ def train(batch_size, epochs, trial=False):
     
         # if epoch%4 == 0:
         # print(f'\nEpoch: {epoch} - train_loss: {train_loss_epoch:.5f} - val_loss: {val_loss_epoch:.5f} - test_loss: {test_loss_epoch:.5}') 
-        print(f'\nEpoch: {epoch} - train_loss: {train_loss_epoch:.5f} - val_loss: {val_loss_epoch:.5f}') 
+        print(f'\nEpoch: {epoch} - train_loss: {train_loss_epoch:.5f} - val_loss: {val_loss_epoch:.5f}')
+        print(f'train_DBL_loss: {train_dbl_loss_epoch:.5f} - train_reg_loss: {train_reg_loss_epoch:.5f}')
     
     
     writer.flush()
@@ -200,15 +201,12 @@ def train(batch_size, epochs, trial=False):
         
 
 
-
+#%% test
 def test():
-
-    #%% test
     
     dataset = dataset_train
     test_histplot_with_model(model, dataset, n_classes, device)
     
-    #%% Test
     
     dataset = dataset_train
     n_examples = 7
