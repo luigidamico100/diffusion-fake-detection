@@ -177,7 +177,8 @@ def train(batch_size, epochs,
         test_histplot_with_model(model, dataset=dataset_val, n_classes=2, device=device, ax=axs[1])
         axs[0].set_title('Train')
         axs[1].set_title('Val')
-        fig.show()
+        fig.savefig(os.path.join(logs_path, 'histplots.jpg'), dpi=200)
+        
     
     
     
