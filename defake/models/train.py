@@ -42,14 +42,13 @@ import os
 
 def train(batch_size, epochs, 
           regularization=True,
-          lambda_=3,
+          lambda_=3.,
           trial=False, 
           experiment_name=None, 
-          perform_test=False,
+          perform_test=True,
           device='cpu'):
     
     seed_everything(42)
-    device = torch.device("cpu")
     print(device)
 
     if not trial:
@@ -61,7 +60,7 @@ def train(batch_size, epochs,
         dataset_train = PatchDataset(annotations_path=dataset_annotations_train_path,
                                     real_images_path=dataset_real_train_dir,
                                     generated_images_path=dataset_generated_train_dir,
-                                    n_samples=200,
+                                    n_samples=None,
                                     deterministic_patches=False,
                                     device=device)
         
@@ -168,7 +167,6 @@ def train(batch_size, epochs,
     writer.flush()
     writer.close()
     torch.save(model.state_dict, os.path.join(logs_path, 'model'))
-    print(f'Logs and model saved to: {logs_path}')
     
     if perform_test:
         
@@ -179,6 +177,8 @@ def train(batch_size, epochs,
         axs[1].set_title('Val')
         fig.savefig(os.path.join(logs_path, 'histplots.jpg'), dpi=200)
         
+    print(f'Experiment saved to: {logs_path}')
+        
     
     
     
@@ -186,12 +186,14 @@ def train(batch_size, epochs,
 
 
 if __name__ == '__main__':
-    train(batch_size=128,
-          epochs=1,
-          trial=False,
-          experiment_name='wo_reg',
-          perform_test=True,
-          device=device)
+    train(batch_size=128, 
+            epochs=2, 
+            regularization=True,
+            lambda_=3,
+            trial=False, 
+            experiment_name=None, 
+            perform_test=True,
+            device='cpu')
 
 
 
