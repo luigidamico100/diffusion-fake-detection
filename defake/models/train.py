@@ -40,7 +40,7 @@ import os
 '''
 
 
-def train(batch_size, epochs, trial=False, experiment_name=None):
+def train(batch_size, epochs, trial=False, experiment_name=None, perform_test=False):
     
     seed_everything(42)
     device = torch.device("cpu")
@@ -86,7 +86,7 @@ def train(batch_size, epochs, trial=False, experiment_name=None):
     model = DnCNN(in_nc=3).to(device)
     # model = SimpleNet().to(device)
     optimizer = optim.Adam(model.parameters(), lr = 0.0005)
-    loss = DBLLoss(batch_size, n_classes, regularization=False, lambda_=6.5, driveaway_different_classes=False, device=device, verbose=False)
+    loss = DBLLoss(batch_size, n_classes, regularization=True, lambda_=6.5, driveaway_different_classes=False, device=device, verbose=False)
     summary(model, (3, 48, 48))
     
     # N: batch size
@@ -176,28 +176,11 @@ def train(batch_size, epochs, trial=False, experiment_name=None):
     torch.save(model.state_dict, os.path.join(logs_path, 'model'))
     print(f'Logs and model saved to: {logs_path}')
     
-    # plt.plot(train_loss_history, label='training loss')
-    # plt.plot(val_loss_history, label='validation loss')
-    # plt.legend()
+    if perform_test:
+        test_histplot_with_model(model, dataset=dataloader_train, n_classes=2, device=device)
     
-
-
-# #%% compute loss on all the dataset_train
-
-
-# model.train()
-# with torch.no_grad():
-#     for dataloader_item in dataloader_train:
-#         # batch_outputs = model.compute_batch_output(dataloader_item)
-#         batch_outputs = compute_batch_output(model, dataloader_item)
-#         batch_loss = loss.compute_loss(batch_outputs)
-#         test_loss_batches.append(batch_loss.item())
-#         print('-', end='')
-        
-# print()
-# test_loss_epoch = sum(test_loss_batches) / len(test_loss_batches)
-# print(test_loss_epoch)
-
+    
+    
         
 
 
@@ -225,6 +208,10 @@ if __name__ == '__main__':
           epochs=10,
           trial=False,
           experiment_name='wo_reg')
+    
+    test
+    
+    test_histplot_with_model(model, dataset, n_classes, device='cpu')
 
 
 
