@@ -40,7 +40,13 @@ import os
 '''
 
 
-def train(batch_size, epochs, trial=False, experiment_name=None, perform_test=False):
+def train(batch_size, epochs, 
+          regularization=True,
+          lambda_=3,
+          trial=False, 
+          experiment_name=None, 
+          perform_test=False,
+          device='cpu'):
     
     seed_everything(42)
     device = torch.device("cpu")
@@ -55,7 +61,7 @@ def train(batch_size, epochs, trial=False, experiment_name=None, perform_test=Fa
         dataset_train = PatchDataset(annotations_path=dataset_annotations_train_path,
                                     real_images_path=dataset_real_train_dir,
                                     generated_images_path=dataset_generated_train_dir,
-                                    n_samples=None,
+                                    n_samples=200,
                                     deterministic_patches=False,
                                     device=device)
         
@@ -78,13 +84,10 @@ def train(batch_size, epochs, trial=False, experiment_name=None, perform_test=Fa
                                                                          n_samples_per_class_test=500,)
     
     dataloader_train = DataLoader(dataset_train, batch_size=batch_size_per_class, shuffle=False, drop_last=True)
-    dataloader_val = DataLoader(dataset_val, batch_size=batch_size_per_class, shuffle=True, drop_last=True)
-    dataloader_test = DataLoader(dataset_test, batch_size=1, shuffle=True, drop_last=True)
+    dataloader_val = DataLoader(dataset_val, batch_size=batch_size_per_class, shuffle=True, drop_last=True)    
     
-    
-    
-    model = DnCNN(in_nc=3).to(device)
-    # model = SimpleNet().to(device)
+    # model = DnCNN(in_nc=3).to(device)
+    model = SimpleNet().to(device)
     optimizer = optim.Adam(model.parameters(), lr = 0.0005)
     loss = DBLLoss(batch_size, n_classes, regularization=True, lambda_=6.5, driveaway_different_classes=False, device=device, verbose=False)
     summary(model, (3, 48, 48))
@@ -92,10 +95,10 @@ def train(batch_size, epochs, trial=False, experiment_name=None, perform_test=Fa
     # N: batch size
     # N = n_images_per_class * n_classes
     
-    train_loss_history, val_loss_history, test_loss_history = [], [], []
-    train_loss_batches, val_loss_batches, test_loss_batches = [], [], []
-    train_dbl_loss_batches, val_dbl_loss_batches, test_dbl_loss_batches = [], [], []
-    train_reg_loss_batches, val_reg_loss_batches, test_reg_loss_batches = [], [], []
+    train_loss_history, val_loss_history = [], []
+    train_loss_batches, val_loss_batches = [], []
+    train_dbl_loss_batches, val_dbl_loss_batches = [], []
+    train_reg_loss_batches, val_reg_loss_batches = [], []
     logs_path = os.path.join(runs_path, f"{datetime.now().strftime('%Y_%m_%d-%H_%M_%S')}__{experiment_name}")
     writer = SummaryWriter(logs_path)
     
@@ -135,15 +138,6 @@ def train(batch_size, epochs, trial=False, experiment_name=None, perform_test=Fa
                 val_loss_batches.append(batch_loss.item())
                 val_dbl_loss_batches.append(batch_dbl_loss.item())
                 val_reg_loss_batches.append(batch_reg_loss.item())
-                
-        # # test ??
-        # model.train()
-        # # with torch.no_grad():
-        # for dataloader_item in dataloader_train:
-        #     # batch_outputs = model.compute_batch_output(dataloader_item)
-        #     batch_outputs = compute_batch_output(model, dataloader_item)
-        #     batch_loss, batch_dbl_loss, batch_reg_loss = loss.compute_loss(batch_outputs)
-        #     test_loss_batches.append(batch_loss.item())
     
         # update the training history 
         train_loss_epoch = sum(train_loss_batches) / len(train_loss_batches)
@@ -177,41 +171,26 @@ def train(batch_size, epochs, trial=False, experiment_name=None, perform_test=Fa
     print(f'Logs and model saved to: {logs_path}')
     
     if perform_test:
-        test_histplot_with_model(model, dataset=dataloader_train, n_classes=2, device=device)
-    
-    
-    
         
-
-
-#%% test
-def test():
+        fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+        test_histplot_with_model(model, dataset=dataset_train, n_classes=2, device=device, ax=axs[0])
+        test_histplot_with_model(model, dataset=dataset_val, n_classes=2, device=device, ax=axs[1])
+        axs[0].set_title('Train')
+        axs[1].set_title('Val')
+        fig.show()
     
-    dataset = dataset_train
-    test_histplot_with_model(model, dataset, n_classes, device)
     
     
-    dataset = dataset_train
-    n_examples = 7
-    
-    test_n1(model, dataset, n_classes, n_examples, device)
-      
-    test_histplot_with_model(model, dataset, n_classes, device)
-    test_histplot(model, dataset, n_classes, device)
-    
-    test_n3(model, dataset, n_classes, n_examples, device)
-
+#%%
 
 
 if __name__ == '__main__':
-    train(batch_size=10,
-          epochs=10,
+    train(batch_size=128,
+          epochs=1,
           trial=False,
-          experiment_name='wo_reg')
-    
-    test
-    
-    test_histplot_with_model(model, dataset, n_classes, device='cpu')
+          experiment_name='wo_reg',
+          perform_test=True,
+          device=device)
 
 
 

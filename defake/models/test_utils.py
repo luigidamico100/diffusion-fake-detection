@@ -72,7 +72,7 @@ def test_histplot(model, dataset, n_classes, device='cpu'):
     sns.histplot(df_siamese_out, x='distance', hue='equal_class', bins=50)
     
     
-def test_histplot_with_model(model, dataset, n_classes, device='cpu'):
+def test_histplot_with_model(model, dataset, n_classes, device='cpu', ax=None):
     """ Simple test for measuring distances of equal/different classes """
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, drop_last=True)
     model.eval()
@@ -104,7 +104,7 @@ def test_histplot_with_model(model, dataset, n_classes, device='cpu'):
             siamese_out_list.append(dict_siamese_out)
       
     df_siamese_out = pd.DataFrame(siamese_out_list)
-    sns.histplot(df_siamese_out, x='distance', hue='equal_class', bins=50)
+    sns.histplot(df_siamese_out, x='distance', hue='equal_class', bins=50, ax=ax)
   
 
 
