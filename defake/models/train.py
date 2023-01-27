@@ -46,7 +46,8 @@ def train(batch_size, epochs,
           trial=False, 
           experiment_name=None, 
           perform_test=True,
-          device='cpu'):
+          device='cpu',
+          use_simplenet=False):
     
     seed_everything(42)
     print(device)
@@ -85,8 +86,8 @@ def train(batch_size, epochs,
     dataloader_train = DataLoader(dataset_train, batch_size=batch_size_per_class, shuffle=False, drop_last=True)
     dataloader_val = DataLoader(dataset_val, batch_size=batch_size_per_class, shuffle=True, drop_last=True)    
     
-    # model = DnCNN(in_nc=3).to(device)
-    model = SimpleNet().to(device)
+    model = SimpleNet().to(device) if use_simplenet else DnCNN(in_nc=3).to(device)
+        
     optimizer = optim.Adam(model.parameters(), lr = 0.0005)
     loss = DBLLoss(batch_size, n_classes, regularization=True, lambda_=6.5, driveaway_different_classes=False, device=device, verbose=False)
     summary(model, (3, 48, 48))
