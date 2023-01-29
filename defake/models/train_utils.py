@@ -10,6 +10,8 @@ import os
 import torchvision.transforms.functional as TF
 from numpy.random import randint
 import torch
+import copy
+import random
 
 
 class DBLLoss():
@@ -142,6 +144,7 @@ class PatchDataset(Dataset):
         self.generated_images_path = generated_images_path
         self.patch_size = patch_size
         self.deterministic_patches = deterministic_patches
+        self.classes_list = ['image_name', 'generated_image_name']
         self.device = device
             
         
@@ -190,6 +193,80 @@ class PatchDataset(Dataset):
         
         
         return real_patch.to(self.device), generated_patch.to(self.device)
+
+    
+class PatchDatasetTriplet(Dataset):
+    
+    def __init__(self, annotations_path, real_images_path, generated_images_path, patch_size=48, device='cpu', n_samples=None, deterministic_patches=False):
+            
+        with open(annotations_path) as json_file:
+            annotations_dict = json.loads(json_file.read())
+            self.annotations = list(annotations_dict.values())
+        
+        if n_samples:
+            self.annotations = self.annotations[:n_samples]
+        
+        self.real_images_path = real_images_path
+        self.generated_images_path = generated_images_path
+        self.patch_size = patch_size
+        self.deterministic_patches = deterministic_patches
+        self.device = device
+            
+        
+    def __len__(self):
+        return len(self.annotations)
+
+    def __getitem__(self, idx):
+        """
+        return a list of n_class elements
+        - each element is a np.ndarray of shape (3, H, W)
+        """
+        
+        
+        def load_patch(image_path, patch_size):
+            
+            image = TF.to_tensor(Image.open(image_path))
+            
+            patch_height_index = randint(0, image.shape[1] - patch_size)
+            patch_width_index = randint(0, image.shape[2] - patch_size)
+
+            patch = image[:, 
+                          patch_height_index:patch_height_index+patch_size,
+                          patch_width_index:patch_width_index+patch_size]
+            if len(patch) == 1:
+                # This image is not RGB
+                patch = torch.cat([patch, patch, patch], 0)
+                
+            return patch
+
+        classes_list = ['image_name', 'generated_image_name']
+        anchor_class = random.choice(classes_list)
+        classes_list.remove(anchor_class)
+        negative_class = classes_list[0]
+        positive_idx = random.choice(range(self.__len__()))
+        negative_idx = random.choice(range(self.__len__()))
+        
+        anchor_name = self.annotations[idx][anchor_class]
+        positive_name = self.annotations[positive_idx][anchor_class]
+        negative_name = self.annotations[negative_idx][negative_class]
+        
+        anchor_images_folder = self.real_images_path if anchor_class=='image_name' else self.generated_images_path
+        positive_images_folder = anchor_images_folder
+        negative_images_folder = self.real_images_path if negative_class=='image_name' else self.generated_images_path
+        
+        anchor_image_path = os.path.join(anchor_images_folder, anchor_name)
+        positive_image_path = os.path.join(positive_images_folder, positive_name)
+        negative_image_path = os.path.join(negative_images_folder, negative_name)
+        
+        anchor_patch = load_patch(anchor_image_path, self.patch_size)
+        negative_patch = load_patch(negative_image_path, self.patch_size)
+        positive_patch = load_patch(positive_image_path, self.patch_size)
+        
+        apn_dict = {'a': anchor_patch.to(self.device),
+                    'p': positive_patch.to(self.device),
+                    'n': negative_patch.to(self.device)}
+
+        return apn_dict
         
 
 def compute_batch_output(model, dataloader_item):

@@ -12,6 +12,7 @@ from defake.paths import (dataset_annotations_train_path, dataset_annotations_va
                           dataset_generated_train_dir, dataset_generated_val_dir)
 import pandas as pd
 import seaborn as sns
+from torch.linalg import norm
 
 
 def test_n1(model, dataset, n_classes, n_examples=7, device='cpu'):
@@ -43,6 +44,38 @@ def test_n1(model, dataset, n_classes, n_examples=7, device='cpu'):
     plt.tight_layout()
 
 
+def test_histplot_triplet(model, dataset, device='cpu', ax=None):
+    
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, drop_last=True)
+    
+    distance_list = []
+    
+    for dataloader_item in dataloader:
+        anchor_image = dataloader_item['a'] # shape (1, 3, H, W)
+        positive_image = dataloader_item['p'] # shape (1, 3, H, W)
+        negative_image = dataloader_item['n'] # shape (1, 3, H, W)
+        
+        model.eval()
+        anchor_output = model(anchor_image) # shape (1, 1, H, W)
+        positive_output = model(positive_image) # shape (1, 1, H, W)
+        negative_output = model(negative_image) # shape (1, 1, H, W)
+        
+        positive_distance = norm(anchor_output.flatten() - positive_output.flatten()).item()
+        negative_distance = norm(anchor_output.flatten() - negative_output.flatten()).item()
+        
+        distance_dict = {'equal_class': True,
+                         'distance': positive_distance}
+        distance_list.append(distance_dict)
+        
+        distance_dict = {'equal_class': False,
+                         'distance': negative_distance}
+        distance_list.append(distance_dict)
+        
+    df_distances = pd.DataFrame(distance_list)
+    sns.histplot(df_distances, x='distance', hue='equal_class', bins=50, ax=ax)
+        
+
+
 def test_histplot(model, dataset, n_classes, device='cpu'):
     """ Simple test for measuring distances of equal/different classes """
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, drop_last=True)
@@ -70,6 +103,7 @@ def test_histplot(model, dataset, n_classes, device='cpu'):
       
     df_siamese_out = pd.DataFrame(siamese_out_list)
     sns.histplot(df_siamese_out, x='distance', hue='equal_class', bins=50)
+    
     
     
 def test_histplot_with_model(model, dataset, n_classes, device='cpu', ax=None):

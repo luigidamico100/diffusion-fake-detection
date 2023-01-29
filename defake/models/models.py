@@ -165,3 +165,49 @@ class DnCNN(nn.Module):
     
     def save_weights(self, path):
         torch.save(self.state_dict(), path)
+        
+        
+
+
+class TripletModel(nn.Module):
+    
+    def __init__(self, model):
+        super(TripletModel, self).__init__()
+        
+        self.model = model
+        
+    def forward(self, a, p, n):
+        """
+        Parameters
+        ----------
+        a : torch.Tensor
+            shape (B, 3, H, W)
+        p : torch.Tensor
+            shape (B, 3, H, W)
+        n : torch.Tensor
+            shape (B, 3, H, W)
+        Returns
+        -------
+        a_out : torch.Tensor
+            shape (1, 3, H, W)
+        p_out : torch.Tensor
+            shape (1, 3, H, W)
+        n_out : torch.Tensor
+            shape (1, 3, H, W)
+        
+        """
+        
+        out_a = self.model(a)
+        out_p = self.model(p)
+        out_n = self.model(n)
+        
+        return out_a, out_p, out_n
+        
+        
+        
+        
+        
+        
+        
+        
+        
