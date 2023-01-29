@@ -44,10 +44,11 @@ def train(batch_size, epochs,
           regularization=True,
           lambda_=3.,
           trial=False, 
-          experiment_name=None, 
+          experiment_name=None,
+          load_experiment_name=None,
           perform_test=True,
-          device='cpu',
-          use_simplenet=False):
+          use_simplenet=False,
+          device='cpu'):
     
     seed_everything(42)
     print(device)
@@ -88,6 +89,11 @@ def train(batch_size, epochs,
     
     model = SimpleNet().to(device) if use_simplenet else DnCNN(in_nc=3).to(device)
         
+    if load_experiment_name:
+        prev_experiment_path = os.path.join(runs_path, load_experiment_name, 'model.pth')
+        model.load_state_dict(torch.load(prev_experiment_path))
+        print(f'Loaded model from: {load_experiment_name}')
+    
     optimizer = optim.Adam(model.parameters(), lr = 0.0005)
     loss = DBLLoss(batch_size, n_classes, regularization=True, lambda_=6.5, driveaway_different_classes=False, device=device, verbose=False)
     summary(model, (3, 48, 48))
@@ -99,7 +105,7 @@ def train(batch_size, epochs,
     train_loss_batches, val_loss_batches = [], []
     train_dbl_loss_batches, val_dbl_loss_batches = [], []
     train_reg_loss_batches, val_reg_loss_batches = [], []
-    logs_path = os.path.join(runs_path, f"{datetime.now().strftime('%Y_%m_%d-%H_%M_%S')}__{experiment_name}")
+    logs_path = os.path.join(runs_path, f"{device}_{datetime.now().strftime('%Y_%m_%d-%H_%M_%S')}__{experiment_name}")
     writer = SummaryWriter(logs_path)
     
     
@@ -167,7 +173,7 @@ def train(batch_size, epochs,
     
     writer.flush()
     writer.close()
-    torch.save(model.state_dict, os.path.join(logs_path, 'model'))
+    torch.save(model.state_dict(), os.path.join(logs_path, 'model.pth'))
     
     if perform_test:
         
@@ -193,7 +199,9 @@ if __name__ == '__main__':
             lambda_=3,
             trial=False, 
             experiment_name=None, 
+            load_experiment_name='2023_01_29-16_28_42__None',
             perform_test=True,
+            use_simplenet=True,
             device='cpu')
 
 
