@@ -188,10 +188,7 @@ def train(batch_size, epochs,
     print(f'Experiment saved to: {logs_path}')
         
     
-def train_triplet(batch_size, epochs, 
-                  regularization=True,
-                  lambda_=3.,
-                  trial=False, 
+def train_triplet(batch_size, epochs,  
                   experiment_name=None,
                   load_experiment_name=None,
                   perform_test=True,
@@ -200,38 +197,21 @@ def train_triplet(batch_size, epochs,
     
     seed_everything(42)
     print(device)
-
-    if not trial:
-        
-        n_classes = 2
-        assert (batch_size/n_classes).is_integer()
-        batch_size_per_class = batch_size // n_classes
-        
-        dataset_train = PatchDatasetTriplet(annotations_path=dataset_annotations_train_path,
-                                    real_images_path=dataset_real_train_dir,
-                                    generated_images_path=dataset_generated_train_dir,
-                                    n_samples=None,
-                                    device=device)
-        
-        dataset_val = PatchDatasetTriplet(annotations_path=dataset_annotations_val_path,
-                                    real_images_path=dataset_real_val_dir,
-                                    generated_images_path=dataset_generated_val_dir,
-                                    n_samples=None,
-                                    device=device)
     
-    else:
-        
-        n_classes = 3
-        assert (batch_size/n_classes).is_integer()
-        
-        batch_size_per_class = batch_size // n_classes
+    dataset_train = PatchDatasetTriplet(annotations_path=dataset_annotations_train_path,
+                                real_images_path=dataset_real_train_dir,
+                                generated_images_path=dataset_generated_train_dir,
+                                n_samples=None,
+                                device=device)
     
-        dataset_train, dataset_val, dataset_test = create_trial_datasets(n_samples_per_class_train=100,
-                                                                         n_samples_per_class_val=50,
-                                                                         n_samples_per_class_test=500,)
+    dataset_val = PatchDatasetTriplet(annotations_path=dataset_annotations_val_path,
+                                real_images_path=dataset_real_val_dir,
+                                generated_images_path=dataset_generated_val_dir,
+                                n_samples=None,
+                                device=device)
     
-    dataloader_train = DataLoader(dataset_train, batch_size=batch_size_per_class, shuffle=True, drop_last=True)
-    dataloader_val = DataLoader(dataset_val, batch_size=batch_size_per_class, shuffle=True, drop_last=True)    
+    dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, drop_last=True)
+    dataloader_val = DataLoader(dataset_val, batch_size=batch_size, shuffle=True, drop_last=True)    
     
     model = SimpleNet() if use_simplenet else DnCNN(in_nc=3)
     triplet_model = TripletModel(model).to(device)
@@ -252,10 +232,9 @@ def train_triplet(batch_size, epochs,
     
     train_loss_history, val_loss_history = [], []
     train_loss_batches, val_loss_batches = [], []
-    train_dbl_loss_batches, val_dbl_loss_batches = [], []
-    train_reg_loss_batches, val_reg_loss_batches = [], []
-    logs_path = os.path.join(runs_path, f"{device}_{datetime.now().strftime('%Y_%m_%d-%H_%M_%S')}__{experiment_name}")
-    writer = SummaryWriter(logs_path)
+    if experiment_name:
+        logs_path = os.path.join(runs_path, f"{device}_{datetime.now().strftime('%Y_%m_%d-%H_%M_%S')}__{experiment_name}")
+        writer = SummaryWriter(logs_path)
     
     
     # Iterate throught the epochs
@@ -270,6 +249,7 @@ def train_triplet(batch_size, epochs,
             optimizer.zero_grad()
     
             # forward pass
+            triplet_model.to(device)
             a_out, p_out, n_out = triplet_model(dataloader_item['a'], dataloader_item['p'], dataloader_item['n'])
     
             a_out_flatten = torch.flatten(a_out, start_dim=1, end_dim=3)
@@ -301,17 +281,18 @@ def train_triplet(batch_size, epochs,
         train_loss_history.append(train_loss_epoch)
         val_loss_history.append(val_loss_epoch)
         # test_loss_history.append(test_loss_epoch)
-        writer.add_scalar("Loss/train", train_loss_epoch, epoch)
-        writer.add_scalar("Loss/val", val_loss_epoch, epoch)
+        if experiment_name:
+            writer.add_scalar("Loss/train", train_loss_epoch, epoch)
+            writer.add_scalar("Loss/val", val_loss_epoch, epoch)
     
         # if epoch%4 == 0:
         # print(f'\nEpoch: {epoch} - train_loss: {train_loss_epoch:.5f} - val_loss: {val_loss_epoch:.5f} - test_loss: {test_loss_epoch:.5}') 
         print(f'\nEpoch: {epoch} - train_loss: {train_loss_epoch:.5f} - val_loss: {val_loss_epoch:.5f}')
     
-    
-    writer.flush()
-    writer.close()
-    torch.save(model.state_dict(), os.path.join(logs_path, 'model.pth'))
+    if experiment_name:
+        writer.flush()
+        writer.close()
+        torch.save(model.state_dict(), os.path.join(logs_path, 'model.pth'))
     
     if perform_test:
         fig, axs = plt.subplots(1, 2, figsize=(10, 5))
@@ -332,14 +313,11 @@ def train_triplet(batch_size, epochs,
 if __name__ == '__main__':
     train_triplet(batch_size=128, 
             epochs=40, 
-            regularization=True,
-            lambda_=3,
-            trial=False, 
             experiment_name=None, 
             load_experiment_name=None,
             perform_test=True,
             use_simplenet=True,
-            device='cpu')
+            device=device)
 
 
 
