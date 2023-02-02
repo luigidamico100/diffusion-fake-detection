@@ -24,6 +24,7 @@ from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 import os
 from torch.nn import TripletMarginLoss
+import time
 
 
 '''
@@ -193,7 +194,8 @@ def train_triplet(batch_size, epochs,
                   load_experiment_name=None,
                   perform_test=True,
                   use_simplenet=False,
-                  device='cpu'):
+                  device='cpu',
+                  deterministic_dataset=False):
     
     seed_everything(42)
     print(device)
@@ -202,6 +204,7 @@ def train_triplet(batch_size, epochs,
                                 real_images_path=dataset_real_train_dir,
                                 generated_images_path=dataset_generated_train_dir,
                                 n_samples=None,
+                                deterministic_dataset=deterministic_dataset,
                                 device=device)
     
     dataset_val = PatchDatasetTriplet(annotations_path=dataset_annotations_val_path,
@@ -232,6 +235,7 @@ def train_triplet(batch_size, epochs,
     
     train_loss_history, val_loss_history = [], []
     train_loss_batches, val_loss_batches = [], []
+    time_history = []
     if experiment_name:
         logs_path = os.path.join(runs_path, f"{device}_{datetime.now().strftime('%Y_%m_%d-%H_%M_%S')}__{experiment_name}")
         writer = SummaryWriter(logs_path)
@@ -239,6 +243,7 @@ def train_triplet(batch_size, epochs,
     
     # Iterate throught the epochs
     for epoch in range(epochs):
+        start_time = time.time()
         train_loss_batches = []
         val_loss_batches = []
     
@@ -276,18 +281,22 @@ def train_triplet(batch_size, epochs,
         # update the training history 
         train_loss_epoch = sum(train_loss_batches) / len(train_loss_batches)
         val_loss_epoch = sum(val_loss_batches) / len(val_loss_batches)
+        epoch_time = time.time() - start_time
+        
         
         # test_loss_epoch = sum(test_loss_batches) / len(test_loss_batches)
         train_loss_history.append(train_loss_epoch)
         val_loss_history.append(val_loss_epoch)
+        time_history.append(epoch_time)
         # test_loss_history.append(test_loss_epoch)
         if experiment_name:
             writer.add_scalar("Loss/train", train_loss_epoch, epoch)
             writer.add_scalar("Loss/val", val_loss_epoch, epoch)
+            writer.add_scalar("time", epoch_time, epoch)
     
         # if epoch%4 == 0:
         # print(f'\nEpoch: {epoch} - train_loss: {train_loss_epoch:.5f} - val_loss: {val_loss_epoch:.5f} - test_loss: {test_loss_epoch:.5}') 
-        print(f'\nEpoch: {epoch} - train_loss: {train_loss_epoch:.5f} - val_loss: {val_loss_epoch:.5f}')
+        print(f'\nEpoch: {epoch} - train_loss: {train_loss_epoch:.5f} - val_loss: {val_loss_epoch:.5f}. Epoch time: {epoch_time:.0f}s')
     
     if experiment_name:
         writer.flush()
@@ -296,13 +305,16 @@ def train_triplet(batch_size, epochs,
     
     if perform_test:
         fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-        test_histplot_triplet(model, dataset=dataset_train, device=device, ax=axs[0])
-        test_histplot_triplet(model, dataset=dataset_val, device=device, ax=axs[1])
+        test_histplot_triplet(model, dataset=dataset_train, device='cpu', ax=axs[0])
+        test_histplot_triplet(model, dataset=dataset_val, device='cpu', ax=axs[1])
         axs[0].set_title('Train')
         axs[1].set_title('Val')
-        fig.savefig(os.path.join(logs_path, 'histplots.jpg'), dpi=200)
         
-    print(f'Experiment saved to: {logs_path}')
+        if experiment_name:
+            fig.savefig(os.path.join(logs_path, 'histplots.jpg'), dpi=200)
+    
+    if experiment_name:
+        print(f'Experiment saved to: {logs_path}')
         
     
     
@@ -312,11 +324,12 @@ def train_triplet(batch_size, epochs,
 
 if __name__ == '__main__':
     train_triplet(batch_size=128, 
-            epochs=40, 
-            experiment_name=None, 
+            epochs=100, 
+            experiment_name='overfitting', 
             load_experiment_name=None,
             perform_test=True,
             use_simplenet=True,
+            deterministic_dataset=True,
             device=device)
 
 

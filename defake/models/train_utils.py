@@ -197,7 +197,7 @@ class PatchDataset(Dataset):
     
 class PatchDatasetTriplet(Dataset):
     
-    def __init__(self, annotations_path, real_images_path, generated_images_path, patch_size=48, device='cpu', n_samples=None, deterministic_patches=False):
+    def __init__(self, annotations_path, real_images_path, generated_images_path, patch_size=48, deterministic_dataset=False, device='cpu', n_samples=None):
             
         with open(annotations_path) as json_file:
             annotations_dict = json.loads(json_file.read())
@@ -209,7 +209,7 @@ class PatchDatasetTriplet(Dataset):
         self.real_images_path = real_images_path
         self.generated_images_path = generated_images_path
         self.patch_size = patch_size
-        self.deterministic_patches = deterministic_patches
+        self.deterministic_dataset = deterministic_dataset
         self.device = device
             
         
@@ -223,12 +223,16 @@ class PatchDatasetTriplet(Dataset):
         """
         
         
-        def load_patch(image_path, patch_size):
+        def load_patch(image_path, patch_size, deterministic_patches):
             
             image = TF.to_tensor(Image.open(image_path))
             
-            patch_height_index = randint(0, image.shape[1] - patch_size)
-            patch_width_index = randint(0, image.shape[2] - patch_size)
+            if not deterministic_patches:
+                patch_height_index = randint(0, image.shape[1] - patch_size)
+                patch_width_index = randint(0, image.shape[2] - patch_size)
+            else:
+                patch_height_index = 100
+                patch_width_index = 100
 
             patch = image[:, 
                           patch_height_index:patch_height_index+patch_size,
@@ -240,11 +244,20 @@ class PatchDatasetTriplet(Dataset):
             return patch
 
         classes_list = ['image_name', 'generated_image_name']
-        anchor_class = random.choice(classes_list)
-        classes_list.remove(anchor_class)
-        negative_class = classes_list[0]
-        positive_idx = random.choice(range(self.__len__()))
-        negative_idx = random.choice(range(self.__len__()))
+        
+        if not self.deterministic_dataset:
+            anchor_class = random.choice(classes_list)
+            classes_list.remove(anchor_class)
+            negative_class = classes_list[0]
+            positive_idx = random.choice(range(self.__len__()))
+            negative_idx = random.choice(range(self.__len__()))
+        else:
+            anchor_class = classes_list[idx % 2]
+            classes_list.remove(anchor_class)
+            negative_class = classes_list[0]
+            positive_idx = (idx + 2) % self.__len__()
+            negative_idx = (idx + 2) % self.__len__()
+            
         
         anchor_name = self.annotations[idx][anchor_class]
         positive_name = self.annotations[positive_idx][anchor_class]
@@ -258,9 +271,9 @@ class PatchDatasetTriplet(Dataset):
         positive_image_path = os.path.join(positive_images_folder, positive_name)
         negative_image_path = os.path.join(negative_images_folder, negative_name)
         
-        anchor_patch = load_patch(anchor_image_path, self.patch_size)
-        negative_patch = load_patch(negative_image_path, self.patch_size)
-        positive_patch = load_patch(positive_image_path, self.patch_size)
+        anchor_patch = load_patch(anchor_image_path, self.patch_size, deterministic_patches=self.deterministic_dataset)
+        negative_patch = load_patch(negative_image_path, self.patch_size, deterministic_patches=self.deterministic_dataset)
+        positive_patch = load_patch(positive_image_path, self.patch_size, deterministic_patches=self.deterministic_dataset)
         
         apn_dict = {'a': anchor_patch.to(self.device),
                     'p': positive_patch.to(self.device),
