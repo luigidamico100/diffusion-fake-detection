@@ -49,13 +49,13 @@ def test_histplot_triplet(model, dataset, device='cpu', ax=None):
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, drop_last=True)
     
     distance_list = []
+    model.eval().to(device)
     
     for dataloader_item in dataloader:
-        anchor_image = dataloader_item['a'] # shape (1, 3, H, W)
-        positive_image = dataloader_item['p'] # shape (1, 3, H, W)
-        negative_image = dataloader_item['n'] # shape (1, 3, H, W)
+        anchor_image = dataloader_item['a'].to(device) # shape (1, 3, H, W)
+        positive_image = dataloader_item['p'].to(device) # shape (1, 3, H, W)
+        negative_image = dataloader_item['n'].to(device) # shape (1, 3, H, W)
         
-        model.eval()
         anchor_output = model(anchor_image) # shape (1, 1, H, W)
         positive_output = model(positive_image) # shape (1, 1, H, W)
         negative_output = model(negative_image) # shape (1, 1, H, W)
